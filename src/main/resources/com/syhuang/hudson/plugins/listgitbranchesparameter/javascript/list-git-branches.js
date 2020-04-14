@@ -105,8 +105,9 @@ var ListGitBranches = ListGitBranches || (function($) {
         var _self = this;
 
         jQuery(_self.getSelectElement()).on("filled", function() {
-            var options = _self.getSelectElement().options;
+            _self.originalOptions = new Array();
 
+            var options = _self.getSelectElement().options;
             for (var i = 0; i < options.length; ++i) {
                 _self.getOriginalOptions().push(options[i]);
             }

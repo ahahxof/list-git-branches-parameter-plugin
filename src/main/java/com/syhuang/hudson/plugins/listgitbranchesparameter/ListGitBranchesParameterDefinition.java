@@ -52,6 +52,7 @@ public class ListGitBranchesParameterDefinition extends ParameterDefinition impl
     private static final Logger LOGGER = Logger.getLogger(ListGitBranchesParameterDefinition.class.getName());
     private final UUID uuid;
     private String remoteURL;
+    private String originalURL;
     private String credentialsId;
     private String defaultValue;
     private String type;
@@ -60,21 +61,24 @@ public class ListGitBranchesParameterDefinition extends ParameterDefinition impl
     private SortMode sortMode;
     private SelectedValue selectedValue;
     private Boolean quickFilterEnabled;
+    private String dependentParam;
     private String listSize;
 
 
     @DataBoundConstructor
     public ListGitBranchesParameterDefinition(String name, String description, String remoteURL, String credentialsId, String defaultValue,
-                                              SortMode sortMode, SelectedValue selectedValue, Boolean quickFilterEnabled,
+                                              SortMode sortMode, SelectedValue selectedValue, Boolean quickFilterEnabled, String dependentParam,
                                               String type, String tagFilter, String branchFilter) {
         super(name, description);
         this.remoteURL = remoteURL;
+        this.originalURL = remoteURL;
         this.credentialsId = credentialsId;
         this.defaultValue = defaultValue;
         this.uuid = UUID.randomUUID();
         this.sortMode = sortMode;
         this.selectedValue = selectedValue;
         this.quickFilterEnabled = quickFilterEnabled;
+        this.dependentParam = dependentParam;
         this.listSize = DEFAULT_LIST_SIZE;
 
         setType(type);
@@ -133,7 +137,7 @@ public class ListGitBranchesParameterDefinition extends ParameterDefinition impl
         switch (getSelectedValue()) {
             case TOP:
                 try {
-                    ListBoxModel valueItems = getDescriptor().doFillValueItems(getParentJob(), getName());
+                    ListBoxModel valueItems = getDescriptor().doFillValueItems(getParentJob(), getName(), getDependentParam());
                     if (valueItems.size() > 0) {
                         return new ListGitBranchesParameterValue(getName(), valueItems.get(0).value);
                     }
@@ -194,6 +198,15 @@ public class ListGitBranchesParameterDefinition extends ParameterDefinition impl
         return quickFilterEnabled;
     }
 
+    public String getDependentParam() {
+        return dependentParam;
+    }
+    
+
+    public void setDependentParam(String value) {
+        dependentParam = value;
+    }
+    
     public String getDefaultValue() {
         return defaultValue;
     }
@@ -337,8 +350,12 @@ public class ListGitBranchesParameterDefinition extends ParameterDefinition impl
     }
 
     @Nonnull
-    private Map<String, String> generateContents(Job job) throws IOException, InterruptedException {
+    private Map<String, String> generateContents(Job job, String dependent) throws IOException, InterruptedException {
         Map<String, String> paramList = new LinkedHashMap<String, String>();
+        if (!dependent.isEmpty()) {
+        		originalURL = remoteURL;
+        		remoteURL = remoteURL.replaceFirst("(\\w|-|_)+\\.git", dependent + ".git");
+        }
         GitClient gitClient = createGitClient(job);
         try {
             if (isTagType()) {
@@ -353,7 +370,9 @@ public class ListGitBranchesParameterDefinition extends ParameterDefinition impl
         } catch (Exception e) {
             LOGGER.log(Level.SEVERE, e.getMessage(), e);
             paramList.clear();
-            paramList.put(e.getMessage(), e.getMessage());
+            paramList.put(getDefaultValue(), getDefaultValue());
+        } finally {
+            remoteURL = originalURL;
         }
         return paramList;
     }
@@ -417,7 +436,7 @@ public class ListGitBranchesParameterDefinition extends ParameterDefinition impl
             return ResourceBundleHolder.get(ListGitBranchesParameterDefinition.class).format("displayName");
         }
 
-        public ListBoxModel doFillCredentialsIdItems(@AncestorInPath Item context, @QueryParameter String remote) {
+        public ListBoxModel doFillCredentialsIdItems(@AncestorInPath Item context, @QueryParameter String remote , @QueryParameter String dependent) {
             if (context == null || !context.hasPermission(Item.EXTENDED_READ)) {
                 return new StandardListBoxModel();
             }
@@ -466,7 +485,7 @@ public class ListGitBranchesParameterDefinition extends ParameterDefinition impl
             return FormValidation.ok();
         }
 
-        public ListBoxModel doFillValueItems(@AncestorInPath Job<?, ?> context, @QueryParameter String param)
+        public ListBoxModel doFillValueItems(@AncestorInPath Job<?, ?> context, @QueryParameter String param, @QueryParameter String dependent)
                 throws IOException, InterruptedException {
             ListBoxModel items = new ListBoxModel();
             if (context != null && context.hasPermission(Item.BUILD)) {
@@ -474,7 +493,7 @@ public class ListGitBranchesParameterDefinition extends ParameterDefinition impl
                 if (prop != null) {
                     ParameterDefinition def = prop.getParameterDefinition(param);
                     if (def instanceof ListGitBranchesParameterDefinition) {
-                        Map<String, String> paramList = ((ListGitBranchesParameterDefinition) def).generateContents(context);
+                        Map<String, String> paramList = ((ListGitBranchesParameterDefinition) def).generateContents(context, dependent);
                         for (Map.Entry<String, String> entry : paramList.entrySet()) {
                             items.add(entry.getValue(), entry.getKey());
                         }

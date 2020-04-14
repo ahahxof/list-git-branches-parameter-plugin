@@ -81,6 +81,10 @@
             <f:textbox/>
         </f:entry>
 
+        <f:entry title="${%parameter.dependent.value}" field="dependentParam">
+            <f:textbox/>
+        </f:entry>
+
         <f:entry title="${%parameter.selected.value}" field="selectedValue">
             <f:enum>${it}</f:enum>
         </f:entry>

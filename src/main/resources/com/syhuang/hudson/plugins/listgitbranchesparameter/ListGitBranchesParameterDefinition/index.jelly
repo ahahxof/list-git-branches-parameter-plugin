@@ -11,12 +11,48 @@
         <div name="parameter" id="${divId}">
             <st:adjunct includes="lib.form.select.select"/>
             <input type="hidden" name="name" value="${it.name}"/>
-            <select name="value" class="select" size="${it.listSize}" style="width: 100%" id="select"
-                    fillUrl="${h.getCurrentDescriptorByNameUrl()}/${it.descriptor.descriptorUrl}/fillValueItems?param=${it.name}">
+            <select name="value" class="select" size="${it.listSize}" style="width: 100%" id="select-${divId}"
+                    fillUrl="${h.getCurrentDescriptorByNameUrl()}/${it.descriptor.descriptorUrl}/fillValueItems?param=${it.name}&amp;dependent=">
                 <option value="">${%Retrieving tags…}</option>
             </select>
+                 <j:if test="${it.dependentParam != ''}">
+
+                <input type="button" id="refreshBranch-${divId}"  name="refreshBranch" value="Refresh" onclick="refresh${divId.replace('-', '')}()" />
+                <script type="text/javascript">
+                function refresh${divId.replace('-', '')}() {
+                    se = jQuery('#${divId}').find('#select-${divId}');
+                    jQuery(se).children().remove();
+                    var opt = document.createElement('option');
+                    opt.value = '';
+                    opt.innerHTML = '${%Retrieving tags…}';
+                    jQuery(se).append(opt);
+                    var repo = '';
+                    jQuery('td.setting-name').each(function() { 
+                        if ( $(this).textContent == '${it.dependentParam}' ) { 
+                            var selectDiv = $(this).nextSibling.childNodes[0].id; 
+                            var se = jQuery('#' + selectDiv); 
+                            repo = se.find('select option:selected').text(); 
+                            return;
+                        }
+                    });
+                    jQuery.post( se.attr('fillUrl') + repo ).done(function( data ) {
+                     
+                        jQuery(se).children().remove();
+
+                        jQuery.each(data.values, function(index, ele) {
+                            var opt = document.createElement('option');
+                            opt.value = ele.name;
+                            opt.innerHTML = ele.value;
+                            jQuery(se).append(opt);
+                        });
+                    jQuery(se).trigger('filled');
+                    });
+                }
+                </script>
+            </j:if>
+
             <j:if test="${it.quickFilterEnabled}">
-                <p><input class='git_parameter_quick_filter' type='text' value='' name='quickFilter' placeholder='Filtering on parameter: "${it.name}". Enter regular expression e.g. .*vul, vul|sir and etc.' style="width: 100%" id="filter"/></p>
+                <p><input class='git_parameter_quick_filter' type='text' value='' name='quickFilter' placeholder='Filtering on parameter: "${it.name}". Enter regular expression e.g. .*vul, vul|sir and etc.' style="width: 100%" id="filter-${divId}"/></p>
             </j:if>
             <script type="text/javascript">
                 var parentDiv = jQuery('#${divId}');
@@ -24,6 +60,6 @@
                         parentDiv.find('.git_parameter_quick_filter').get(0),
                         "${it.selectedValue}", "${it.defaultValue}");
             </script>
-        </div>
+        </div>        
     </f:entry>
 </j:jelly>
